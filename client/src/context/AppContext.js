@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useReducer } from 'react';
 
 const AppContext = createContext(null);
 
@@ -11,42 +11,8 @@ const AVATARS = [
   { emoji: '🐱', bg: 'bg-purple-100', color: 'text-purple-500' },
 ];
 
-const SAMPLE_PROFILES = [
-  {
-    id: 1,
-    name: 'Sofía',
-    level: 12,
-    stars: 240,
-    avatar: AVATARS[0],
-    sessionsCompleted: 24,
-    tasksCompleted: 48,
-    streak: 5,
-    badges: ['🏆', '⚡', '🌟', '🎯'],
-    tasks: [
-      { id: 1, title: 'Tarea de Matemáticas', emoji: '📚', duration: 25, status: 'pending' },
-      { id: 2, title: 'Práctica de Lectura', emoji: '📖', duration: 20, status: 'pending' },
-      { id: 3, title: 'Proyecto de Arte', emoji: '🎨', duration: 15, status: 'pending' },
-    ],
-  },
-  {
-    id: 2,
-    name: 'Diego',
-    level: 8,
-    stars: 160,
-    avatar: AVATARS[1],
-    sessionsCompleted: 16,
-    tasksCompleted: 30,
-    streak: 3,
-    badges: ['🏆', '⚡'],
-    tasks: [
-      { id: 4, title: 'Ciencias Naturales', emoji: '🔬', duration: 20, status: 'pending' },
-      { id: 5, title: 'Inglés', emoji: '✏️', duration: 25, status: 'pending' },
-    ],
-  },
-];
-
 const initialState = {
-  profiles: SAMPLE_PROFILES,
+  profiles: [],
   activeProfile: null,
   timerState: 'idle', // idle | running | paused | break | completed
   timerMinutes: 25,
@@ -59,16 +25,39 @@ const initialState = {
 
 function reducer(state, action) {
   switch (action.type) {
+    case 'SET_PROFILES':
+      // Aseguramos que cada perfil tenga tasks como array vacío por defecto
+      const profiles = action.payload.map(p => ({ ...p, tasks: p.tasks || [] }));
+      
+      // Update activeProfile if it exists in the new data
+      const updatedActive = state.activeProfile 
+        ? profiles.find(p => p.id === state.activeProfile.id) || state.activeProfile
+        : null;
+        
+      return { ...state, profiles, activeProfile: updatedActive };
+
     case 'SELECT_PROFILE':
       return {
         ...state,
-        activeProfile: action.payload,
+        activeProfile: { ...action.payload, tasks: action.payload.tasks || [] },
         timerState: 'idle',
-        timeLeft: action.payload.tasks[0]
-          ? action.payload.tasks[0].duration * 60
-          : 25 * 60,
         activeTaskIndex: 0,
       };
+
+    case 'SET_TASKS': {
+      if (!state.activeProfile) return state;
+      const tasks = action.payload;
+      const updatedProfile = { ...state.activeProfile, tasks };
+      
+      return {
+        ...state,
+        activeProfile: updatedProfile,
+        profiles: state.profiles.map(p => p.id === updatedProfile.id ? updatedProfile : p),
+        timerState: 'idle',
+        timeLeft: tasks[0] ? tasks[0].duration * 60 : state.timerMinutes * 60,
+        activeTaskIndex: 0,
+      };
+    }
 
     case 'SET_TIMER_MINUTES':
       return {
@@ -90,16 +79,28 @@ function reducer(state, action) {
       return { ...state, timeLeft: state.timeLeft - 1 };
 
     case 'COMPLETE_SESSION': {
-      const starsEarned = action.payload || 50;
-      const updated = state.profiles.map((p) =>
-        p.id === state.activeProfile?.id
-          ? { ...p, stars: p.stars + starsEarned, sessionsCompleted: p.sessionsCompleted + 1 }
-          : p
+      const starsEarned = action.payload?.stars || 50;
+      const newBadge = action.payload?.newBadge;
+      const profileUpdate = action.payload?.profileUpdate;
+      
+      let updatedProfile = state.activeProfile;
+      if (profileUpdate && state.activeProfile) {
+         updatedProfile = { ...state.activeProfile, ...profileUpdate };
+      } else if (state.activeProfile) {
+         updatedProfile = {
+           ...state.activeProfile, 
+           stars: state.activeProfile.stars + starsEarned,
+           sessions_completed: (state.activeProfile.sessions_completed || 0) + 1
+         };
+      }
+
+      const updatedProfiles = state.profiles.map((p) =>
+        p.id === updatedProfile?.id ? updatedProfile : p
       );
-      const updatedProfile = updated.find((p) => p.id === state.activeProfile?.id);
+      
       return {
         ...state,
-        profiles: updated,
+        profiles: updatedProfiles,
         activeProfile: updatedProfile,
         sessionStarsEarned: starsEarned,
         pomodoroCount: state.pomodoroCount + 1,
@@ -107,13 +108,13 @@ function reducer(state, action) {
         lastReward: {
           stars: starsEarned,
           message: getRewardMessage(starsEarned),
-          achievement: state.pomodoroCount > 0 && state.pomodoroCount % 3 === 0,
+          badge: newBadge
         },
       };
     }
 
     case 'COMPLETE_TASK': {
-      if (!state.activeProfile) return state;
+      if (!state.activeProfile || !state.activeProfile.tasks) return state;
       const updatedTasks = state.activeProfile.tasks.map((t, i) =>
         i === state.activeTaskIndex ? { ...t, status: 'done' } : t
       );
@@ -122,7 +123,6 @@ function reducer(state, action) {
       const updatedProfile = {
         ...state.activeProfile,
         tasks: updatedTasks,
-        tasksCompleted: state.activeProfile.tasksCompleted + 1,
       };
       return {
         ...state,
@@ -132,29 +132,7 @@ function reducer(state, action) {
         ),
         activeTaskIndex: nextTask ? nextIdx : state.activeTaskIndex,
         timerState: 'idle',
-        timeLeft: nextTask ? nextTask.duration * 60 : 25 * 60,
-      };
-    }
-
-    case 'ADD_TASK': {
-      if (!state.activeProfile) return state;
-      const newTask = {
-        id: Date.now(),
-        title: action.payload.title,
-        emoji: action.payload.emoji || '📝',
-        duration: action.payload.duration || 25,
-        status: 'pending',
-      };
-      const updatedProfile = {
-        ...state.activeProfile,
-        tasks: [...state.activeProfile.tasks, newTask].slice(-3),
-      };
-      return {
-        ...state,
-        activeProfile: updatedProfile,
-        profiles: state.profiles.map((p) =>
-          p.id === updatedProfile.id ? updatedProfile : p
-        ),
+        timeLeft: nextTask ? nextTask.duration * 60 : state.timerMinutes * 60,
       };
     }
 
@@ -172,22 +150,6 @@ function reducer(state, action) {
         timeLeft: state.timerMinutes * 60,
       };
 
-    case 'ADD_PROFILE': {
-      const newProfile = {
-        id: Date.now(),
-        name: action.payload.name,
-        level: 1,
-        stars: 0,
-        avatar: AVATARS[Math.floor(Math.random() * AVATARS.length)],
-        sessionsCompleted: 0,
-        tasksCompleted: 0,
-        streak: 0,
-        badges: [],
-        tasks: [],
-      };
-      return { ...state, profiles: [...state.profiles, newProfile] };
-    }
-
     default:
       return state;
   }
@@ -202,23 +164,6 @@ function getRewardMessage(stars) {
 
 export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState);
-
-  // Persist to localStorage
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem('focuskids_profiles');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        parsed.forEach((p) => dispatch({ type: 'ADD_PROFILE', payload: p }));
-      }
-    } catch (e) {}
-  }, []);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('focuskids_profiles', JSON.stringify(state.profiles));
-    } catch (e) {}
-  }, [state.profiles]);
 
   return (
     <AppContext.Provider value={{ state, dispatch }}>

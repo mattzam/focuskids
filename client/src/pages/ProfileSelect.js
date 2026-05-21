@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp, AVATARS } from '../context/AppContext';
+
+import { profilesAPI, tasksAPI } from '../api';
 
 export default function ProfileSelect() {
   const { state, dispatch } = useApp();
@@ -11,19 +13,45 @@ export default function ProfileSelect() {
   const [showParentPin, setShowParentPin] = useState(false);
   const [pin, setPin] = useState('');
 
-  const handleSelectProfile = (profile) => {
+  // Cargar perfiles reales
+  useEffect(() => {
+    profilesAPI.list()
+      .then(data => dispatch({ type: 'SET_PROFILES', payload: data }))
+      .catch(err => console.error('Error cargando perfiles:', err));
+  }, [dispatch]);
+
+  const handleSelectProfile = async (profile) => {
     dispatch({ type: 'SELECT_PROFILE', payload: profile });
-    navigate('/dashboard');
+    try {
+      // Cargar tareas al seleccionar
+      const tasks = await tasksAPI.list(profile.id);
+      dispatch({ type: 'SET_TASKS', payload: tasks });
+      navigate('/dashboard');
+    } catch (err) {
+      console.error('Error al cargar tareas:', err);
+      navigate('/dashboard');
+    }
   };
 
-  const handleAddProfile = () => {
+  const handleAddProfile = async () => {
     if (newName.trim()) {
-      dispatch({
-        type: 'ADD_PROFILE',
-        payload: { name: newName.trim(), avatarIndex: selectedAvatar },
-      });
-      setShowAddModal(false);
-      setNewName('');
+      const av = AVATARS[selectedAvatar];
+      try {
+        await profilesAPI.create({
+          name: newName.trim(),
+          avatar_emoji: av.emoji,
+          avatar_bg: av.bg
+        });
+        
+        // Refetch perfiles
+        const profiles = await profilesAPI.list();
+        dispatch({ type: 'SET_PROFILES', payload: profiles });
+        
+        setShowAddModal(false);
+        setNewName('');
+      } catch (error) {
+        console.error('Error al crear perfil:', error);
+      }
     }
   };
 
@@ -88,9 +116,9 @@ export default function ProfileSelect() {
           <h3 className="text-xl font-display px-1 mb-4 text-slate-800">Acciones Rápidas</h3>
           <div className="grid grid-cols-2 gap-4">
             {[
-              { icon: 'joystick', label: 'Jugar Ahora', bg: 'bg-primary/10', color: 'text-primary', action: () => state.profiles[0] && handleSelectProfile(state.profiles[0]) },
-              { icon: 'emoji_events', label: 'Logros', bg: 'bg-accent-yellow/20', color: 'text-amber-600', action: () => {} },
-              { icon: 'menu_book', label: 'Biblioteca', bg: 'bg-accent-green/10', color: 'text-accent-green', action: () => {} },
+              { icon: 'joystick', label: 'Jugar Ahora', bg: 'bg-primary/10', color: 'text-primary', action: () => { if (state.profiles[0]) handleSelectProfile(state.profiles[0]); else alert('Selecciona o crea un aprendiz primero'); } },
+              { icon: 'emoji_events', label: 'Logros', bg: 'bg-accent-yellow/20', color: 'text-amber-600', action: () => { if (state.profiles[0]) { dispatch({type:'SELECT_PROFILE',payload:state.profiles[0]}); navigate('/badges'); } else alert('Selecciona un perfil primero'); } },
+              { icon: 'menu_book', label: 'Biblioteca', bg: 'bg-accent-green/10', color: 'text-accent-green', action: () => navigate('/library') },
               { icon: 'query_stats', label: 'Progreso', bg: 'bg-indigo-100', color: 'text-indigo-600', action: () => setShowParentPin(true) },
             ].map(({ icon, label, bg, color, action }) => (
               <button
@@ -233,26 +261,27 @@ function Modal({ children, onClose }) {
 }
 
 function BottomNav({ active }) {
+  const navigate = useNavigate();
   return (
     <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white/90 backdrop-blur-lg border-t border-slate-100 px-6 py-3 flex items-center justify-between z-40 shadow-lg">
       {[
-        { icon: 'home', label: 'Inicio', key: 'home' },
-        { icon: 'auto_stories', label: 'Aprender', key: 'learn' },
-        { icon: 'play_arrow', label: '', key: 'play', isMain: true },
-        { icon: 'emoji_events', label: 'Logros', key: 'awards' },
-        { icon: 'person', label: 'Perfil', key: 'profile' },
-      ].map(({ icon, label, key, isMain }) =>
+        { icon: 'home', label: 'Inicio', key: 'home', action: () => navigate('/') },
+        { icon: 'auto_stories', label: 'Aprender', key: 'learn', action: () => navigate('/library') },
+        { icon: 'play_arrow', label: '', key: 'play', isMain: true, action: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },
+        { icon: 'emoji_events', label: 'Logros', key: 'awards', action: () => alert('Selecciona un perfil en la lista para ver sus logros.') },
+        { icon: 'person', label: 'Perfil', key: 'profile', action: () => alert('Selecciona un perfil en la lista para ver sus estadísticas.') },
+      ].map(({ icon, label, key, isMain, action }) =>
         isMain ? (
           <div key={key} className="relative -top-5">
-            <button className="w-16 h-16 rounded-full bg-primary text-white shadow-xl shadow-primary/40 flex items-center justify-center border-4 border-bg-light hover:bg-primary/90 active:scale-95 transition-all">
+            <button onClick={action} className="w-16 h-16 rounded-full bg-primary text-white shadow-xl shadow-primary/40 flex items-center justify-center border-4 border-bg-light hover:bg-primary/90 active:scale-95 transition-all">
               <span className="material-symbols-outlined text-4xl">{icon}</span>
             </button>
           </div>
         ) : (
-          <a key={key} href="#" className={`flex flex-col items-center gap-1 ${active === key ? 'text-primary' : 'text-slate-400'}`}>
+          <button key={key} onClick={action} className={`flex flex-col items-center gap-1 hover:text-primary transition-colors ${active === key ? 'text-primary' : 'text-slate-400'}`}>
             <span className={`material-symbols-outlined text-3xl ${active === key ? 'fill-icon' : ''}`}>{icon}</span>
             <span className="text-xs font-bold uppercase">{label}</span>
-          </a>
+          </button>
         )
       )}
     </nav>

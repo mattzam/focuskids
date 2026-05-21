@@ -5,6 +5,9 @@ import ProfileSelect from './pages/ProfileSelect';
 import Dashboard from './pages/Dashboard';
 import RewardScreen from './pages/RewardScreen';
 import ParentPanel from './pages/ParentPanel';
+import Stats from './pages/Stats';
+import Badges from './pages/Badges';
+import Library from './pages/Library';
 import './index.css';
 
 function App() {
@@ -17,6 +20,9 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/reward" element={<RewardScreen />} />
             <Route path="/parent" element={<ParentPanel />} />
+            <Route path="/stats" element={<Stats />} />
+            <Route path="/badges" element={<Badges />} />
+            <Route path="/library" element={<Library />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>

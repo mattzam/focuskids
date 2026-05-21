@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   level         INTEGER NOT NULL DEFAULT 1,
   stars         INTEGER NOT NULL DEFAULT 0,
   streak        INTEGER NOT NULL DEFAULT 0,
+  sessions_completed INTEGER NOT NULL DEFAULT 0,
   last_active   DATE,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()

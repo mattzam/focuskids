@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
+import { tasksAPI } from '../api';
 
 export default function ParentPanel() {
   const { state, dispatch } = useApp();
@@ -13,14 +14,41 @@ export default function ParentPanel() {
 
   const EMOJIS = ['📚', '📖', '🎨', '🔬', '✏️', '🎵', '🧩', '💻', '🌍', '🧮'];
 
-  const handleAddTask = () => {
+  // Cargar tareas del perfil seleccionado al abrir la pestaña de tareas
+  React.useEffect(() => {
+    if (activeTab === 'tasks' && selectedProfile) {
+      tasksAPI.list(selectedProfile.id).then(tasks => {
+        setSelectedProfile(prev => ({ ...prev, tasks }));
+      }).catch(console.error);
+    }
+  }, [activeTab, selectedProfile?.id]);
+
+  const handleAddTask = async () => {
     if (!newTaskTitle.trim() || !selectedProfile) return;
-    // Temporarily select that profile, add task, restore
-    const prev = state.activeProfile;
-    dispatch({ type: 'SELECT_PROFILE', payload: selectedProfile });
-    dispatch({ type: 'ADD_TASK', payload: { title: newTaskTitle.trim(), emoji: newTaskEmoji, duration: newTaskDuration } });
-    setNewTaskTitle('');
-    if (prev) dispatch({ type: 'SELECT_PROFILE', payload: prev });
+    
+    try {
+      const newTask = await tasksAPI.create({
+        profile_id: selectedProfile.id,
+        title: newTaskTitle.trim(),
+        emoji: newTaskEmoji,
+        duration: newTaskDuration
+      });
+      
+      // Actualizar tareas locales del perfil seleccionado
+      setSelectedProfile(prev => ({
+        ...prev,
+        tasks: [...(prev.tasks || []), newTask]
+      }));
+      
+      // Limpiar formulario
+      setNewTaskTitle('');
+    } catch (err) {
+      console.error('Error creando tarea:', err);
+      // Podrías mostrar un mensaje de error si alcanzó el límite de 3
+      if (err.response?.status === 409) {
+        alert('Este perfil ya tiene el máximo de 3 tareas activas.');
+      }
+    }
   };
 
   return (

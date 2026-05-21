@@ -67,26 +67,28 @@ export default function Dashboard() {
         <PomodoroTimer />
 
         {/* Task list - max 3 */}
-        <TaskList />
+        <div id="tasks-section">
+          <TaskList />
+        </div>
       </main>
 
       {/* Bottom Nav */}
       <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white/90 backdrop-blur-md border-t border-slate-100 px-5 py-3 z-40">
         <div className="flex justify-between items-center">
           {[
-            { icon: 'timer', label: 'Timer', active: true },
-            { icon: 'list_alt', label: 'Tareas', active: false },
-            { icon: 'leaderboard', label: 'Estadísticas', active: false },
-            { icon: 'workspace_premium', label: 'Insignias', active: false },
-          ].map(({ icon, label, active }) => (
-            <a
+            { icon: 'timer', label: 'Timer', active: true, action: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },
+            { icon: 'list_alt', label: 'Tareas', active: false, action: () => document.getElementById('tasks-section')?.scrollIntoView({ behavior: 'smooth' }) },
+            { icon: 'leaderboard', label: 'Estadísticas', active: false, action: () => navigate('/stats') },
+            { icon: 'workspace_premium', label: 'Insignias', active: false, action: () => navigate('/badges') },
+          ].map(({ icon, label, active, action }) => (
+            <button
               key={label}
-              href="#"
-              className={`flex flex-col items-center gap-1 ${active ? 'text-primary' : 'text-slate-400'}`}
+              onClick={action}
+              className={`flex flex-col items-center gap-1 ${active ? 'text-primary' : 'text-slate-400 hover:text-primary transition-colors'}`}
             >
               <span className={`material-symbols-outlined ${active ? 'fill-icon' : ''}`}>{icon}</span>
               <span className="text-xs font-bold">{label}</span>
-            </a>
+            </button>
           ))}
         </div>
       </nav>
