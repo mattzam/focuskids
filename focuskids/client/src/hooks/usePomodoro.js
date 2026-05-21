@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { useApp } from '../context/AppContext';
+import { useEffect, useRef } from "react";
+import { useApp } from "../context/AppContext";
 
 export function usePomodoro() {
   const { state, dispatch } = useApp();
@@ -8,9 +8,9 @@ export function usePomodoro() {
   const { timerState, timeLeft } = state;
 
   useEffect(() => {
-    if (timerState === 'running') {
+    if (timerState === "running") {
       intervalRef.current = setInterval(() => {
-        dispatch({ type: 'TICK' });
+        dispatch({ type: "TICK" });
       }, 1000);
     } else {
       clearInterval(intervalRef.current);
@@ -19,17 +19,21 @@ export function usePomodoro() {
   }, [timerState, dispatch]);
 
   // Auto-complete when time runs out
+  // Note: TICK now keeps timerState as 'running' when timeLeft reaches 0,
+  // so this effect correctly detects the moment to award stars.
   useEffect(() => {
-    if (timeLeft === 0 && timerState === 'running') {
-      dispatch({ type: 'COMPLETE_SESSION', payload: calculateStars(state) });
+    if (timeLeft === 0 && timerState === "running") {
+      dispatch({ type: "COMPLETE_SESSION", payload: calculateStars(state) });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeLeft, timerState]);
 
-  const start = () => dispatch({ type: 'SET_TIMER_STATE', payload: 'running' });
-  const pause = () => dispatch({ type: 'SET_TIMER_STATE', payload: 'paused' });
-  const reset = () => dispatch({ type: 'RESET_TIMER' });
-  const skip = () => dispatch({ type: 'COMPLETE_SESSION', payload: calculateStars(state) });
-  const startBreak = () => dispatch({ type: 'START_BREAK' });
+  const start = () => dispatch({ type: "SET_TIMER_STATE", payload: "running" });
+  const pause = () => dispatch({ type: "SET_TIMER_STATE", payload: "paused" });
+  const reset = () => dispatch({ type: "RESET_TIMER" });
+  const skip = () =>
+    dispatch({ type: "COMPLETE_SESSION", payload: calculateStars(state) });
+  const startBreak = () => dispatch({ type: "START_BREAK" });
 
   return { start, pause, reset, skip, startBreak };
 }

@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useApp } from '../context/AppContext';
+import React, { useEffect, useState } from "react";
+import { useApp } from "../context/AppContext";
 
 export default function StarsDisplay() {
   const { state } = useApp();
@@ -17,7 +17,7 @@ export default function StarsDisplay() {
       let count = 0;
       const interval = setInterval(() => {
         count++;
-        setDisplayStars(prev => Math.round(prev + stepSize));
+        setDisplayStars((prev) => Math.round(prev + stepSize));
         if (count >= steps) {
           clearInterval(interval);
           setDisplayStars(profile.stars);
@@ -26,14 +26,19 @@ export default function StarsDisplay() {
       }, 50);
       return () => clearInterval(interval);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.stars]);
 
   if (!profile) return null;
 
   return (
-    <div className={`flex items-center gap-2 bg-accent-yellow/20 px-4 py-2 rounded-full transition-all ${animating ? 'scale-110' : 'scale-100'}`}>
-      <span className={`text-xl ${animating ? 'star-bounce' : ''}`}>⭐</span>
-      <span className="font-display text-amber-600 font-bold text-lg">{displayStars}</span>
+    <div
+      className={`flex items-center gap-2 bg-accent-yellow/20 px-4 py-2 rounded-full transition-all ${animating ? "scale-110" : "scale-100"}`}
+    >
+      <span className={`text-xl ${animating ? "star-bounce" : ""}`}>⭐</span>
+      <span className="font-display text-amber-600 font-bold text-lg">
+        {displayStars}
+      </span>
     </div>
   );
 }
